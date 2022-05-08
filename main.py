@@ -27,35 +27,35 @@ def histogram_from_gauss(sample: GaussModel) -> RSSISample:
 
 #Init database
 dataBase = FingerprintDatabase()
+
+"""
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv',False)
 print("End Populating")
-
+"""
 
 
 
 
 """Gauss matching"""
 
-#TODO histogram_from_gauss()
+#TODO histogram_from_gauss() ==> avec la formule gaussienne on peut recréer un histogramme avec la moy et la stdev
+#Au lieu de sauver tout l'histogramme, sauver moy et stdev ==> permet de le recréer. A recréer et à comparer à d'autres histogrammes, comme avant
 
 """
 De ce que je comprends, la classe GaussModel est faite pour chaque point avec 
 -la moyen de tous les rssi mesurés au point
 -stddev des rssi mesurés au point
 """
-
+"""
 gaussDataBase = FingerprintDatabase()
 #Calculer avg et stddev des rssi samples pour chaque point
 for fp in dataBase.db:
       gaussList = []
+      rssiList = []
       for rssiSamp in fp.sample.samples:
-            moy = rssiSamp.get_average_rssi()
-            if len(rssiSamp.rssi) > 1 :
-                  std_dev = stdev(rssiSamp.rssi)
-            else :
-                  std_dev = 0
-            gaussList.append(GaussModel(moy,std_dev))
+            rssiList += (rssiSamp.getRSSI())
+      gaussList.append(GaussModel(mean(rssiList),stdev(rssiList)))
 
       gaussDataBase.append(GaussPoint(fp.position,gaussList))
 
@@ -69,7 +69,7 @@ sampleTest = GaussModel()
 
 #Avoir un GaussModel pour chaque mac_addr de chaque pt ?
 
-
+"""
 
 
 #result = histogram_matching(normalizedDataBase, sampleTest)
@@ -86,7 +86,7 @@ sampleTest = GaussModel()
 
 
 """Histogram matching"""
-"""
+
 normalizedDataBase = FingerprintDatabase()
 #==> DB de position et NormHisto
 #Lire le csv 
@@ -113,7 +113,7 @@ for fp in dataBase.db:
       for key in histo.histogram.keys():
             histo.histogram[key] = histo.histogram[key]/compte
       
-      normalizedDataBase.append(Point(fp.position,histo))
+      normalizedDataBase.append(PointHisto(fp.position,histo))
 
 
 sampleTest = NormHisto({  
@@ -135,7 +135,7 @@ sampleTest = NormHisto({
 
 result = histogram_matching(normalizedDataBase, sampleTest)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-"""
+
 """End Histogram matching"""
 
 

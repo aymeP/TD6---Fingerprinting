@@ -72,7 +72,7 @@ class NormHisto:
       def __init__(self, histo: dict[int, float]):
             self.histogram = histo
 
-class Point:
+class PointHisto:
       def __init__(self, loc : SimpleLocation, histo: NormHisto):
             self.loc = loc
             self.histogram = histo
