@@ -62,39 +62,42 @@ class NormHisto:
       def __init__(self, histo: dict[int, float]):
             self.histogram = histo
 
-
 class PointHisto:
       def __init__(self, loc : SimpleLocation, histo: NormHisto):
             self.loc = loc
             self.histogram = histo
 
 
-def probability(histo1: dict, histo2: dict) -> float:
-      """Fonction calculant la probabilité que histo1 (l'histogramme des mesures) correspondent à histo2 (histogramme sauvé en base)"""
-      tempo = {}
-      tabResult = []
-      #Pour chaque probabilité de chaque adresse mac de histo1, récupérer la plus petite valeur entre une probabilité de histo1 et la correspondante en base
-      for key in histo1.keys():
-            for keyHisto in histo1[key].keys():
-                  if key in histo2.keys()and keyHisto in histo2[key].keys():
-                        tabResult.append(min(histo1[key][keyHisto], histo2[key][keyHisto]))
+def normaliserDataBase(dataBase : FingerprintDatabase) -> FingerprintDatabase:
+      normalizedDataBase = FingerprintDatabase() #==> DB de position et NormHisto
+
+      #Normaliser les rssi samples pour chaque point
+      for fp in dataBase.db:
+            #Initialisation de l'histogramme
+            histo = NormHisto({})
+
+            dictHisto = {}
+            #Pour chaque AP à la position fp.position
+            for rssiSamp in fp.sample.samples:
+                  #Compter chaque rssi
+                  compte = 0
+                  #histo.histogram.update({rssiSamp.mac_address : rssiSamp.rssi[0]/somme})
+                  for rssi in rssiSamp.rssi :
+                        if int(rssi) in histo.histogram:
+                              histo.histogram[int(rssi)] += 1
+                        else:
+                              histo.histogram.update({int(rssi) : 1.0})
+                        compte += 1
+            
+                  #Normaliser les rssi
+                  for key in histo.histogram.keys():
+                        histo.histogram[key] = histo.histogram[key]/compte
+            
+                  #Ajouter l'histo au dictionnaire de la position contenant les histogrammes
+                  dictHisto.update({rssiSamp.mac_address : histo.histogram})
+            normalizedDataBase.append(PointHisto(fp.position,dictHisto))
       
-      #Sommer les probabilités obtenues précédement pour déterminer la probabilité globale que la mesure corresponde aux données en base testées
-      proba = 0
-      for value in tabResult:
-            proba += value
-      return proba
-
-
-def histogram_matching(db: FingerprintDatabase, sample: NormHisto) -> SimpleLocation:
-      val = 0
-      loc = SimpleLocation(0,0,0)
-      for pt in db.db:
-            newVal = probability(sample.histogram, pt.histogram)
-            if newVal > val:
-                  val = newVal
-                  loc = pt.loc
-      return loc 
+      return normalizedDataBase
 
 
 def normaliserList(sampleTestList : list) -> NormHisto:
@@ -122,17 +125,15 @@ def normaliserList(sampleTestList : list) -> NormHisto:
       return sampleTest
 
 
-def sortListByMacAddress(sampleTestList : list) -> dict:
-      sampleTempo = {}
-      #Grouper les données de sampleTestList par adresse mac dans sampleTempo
-      for val in sampleTestList:
-            if val[0] in sampleTempo:
-                  #si l'adresse mac (val[0]) est dans sampleTempo, ajouter la mesure dBm (val[1]) à la liste des dBm de l'adresse mac
-                  sampleTempo[val[0]].append(val[1])
-            else:
-                  #Sinon, ajouter l'adresse mac et sa mesure dBm à sampleTempo
-                  sampleTempo.update({val[0] : [val[1]]})
-      return sampleTempo
+def histogram_matching(dataBase: FingerprintDatabase, sampleTestList: list) -> SimpleLocation:
+      #Normaliser la base de données (calculer un histogramme pour chaque AP de chaque position)
+      normalizedDataBase = normaliserDataBase(dataBase)
+
+      #Normaliser les mesures à tester (Créer un histogramme pour chaque AP)
+      sampleTest = normaliserList(sampleTestList)
+
+      #Retourner la meilleur position
+      return lookForBestLocation(normalizedDataBase, sampleTest.histogram)
 
 """End Histogram matching"""
 
@@ -158,17 +159,6 @@ def createHistoFromDict(testSample : dict) -> dict :
             histo = computeHistoValues(modelGauss.average_rssi, modelGauss.standard_deviation, 10)
             histoToTest.update({mac_address : histo})
       return histoToTest
-
-
-def lookForBestLocation(computedHistoDataBase : FingerprintDatabase, histoToTest : dict) -> SimpleLocation:
-      val = 0
-      loc = SimpleLocation(0,0,0)
-      for pt in computedHistoDataBase.db:
-            newVal = probability(histoToTest, pt.histogram)
-            if newVal > val:
-                  val = newVal
-                  loc = pt.loc
-      return loc 
 
 
 def gauss_matching(dataBase : FingerprintDatabase, sampleTestList : list) -> SimpleLocation:
@@ -243,5 +233,53 @@ def creatGaussModels(testSampleSorted) :
             testSample.update({mac_address : GaussModel(mean(rssi), stdev(rssi) if(len(rssi)>1) else 0)})
       return testSample
 
-
 """End Gauss matching"""
+
+
+
+
+
+"""Used for different matching"""
+def lookForBestLocation(computedHistoDataBase : FingerprintDatabase, histoToTest : dict) -> SimpleLocation:
+      val = 0
+      loc = SimpleLocation(0,0,0)
+      for pt in computedHistoDataBase.db:
+            newVal = probability(histoToTest, pt.histogram)
+            if newVal > val:
+                  val = newVal
+                  loc = pt.loc
+      return loc 
+
+
+def probability(histo1: dict, histo2: dict) -> float:
+      """Fonction calculant la probabilité que histo1 (l'histogramme des mesures) correspondent à histo2 (histogramme sauvé en base)"""
+      tempo = {}
+      tabResult = []
+      #Pour chaque probabilité de chaque adresse mac de histo1, récupérer la plus petite valeur entre une probabilité de histo1 et la correspondante en base
+      for key in histo1.keys():
+            for keyHisto in histo1[key].keys():
+                  if key in histo2.keys()and keyHisto in histo2[key].keys():
+                        tabResult.append(min(histo1[key][keyHisto], histo2[key][keyHisto]))
+      
+      #Sommer les probabilités obtenues précédement pour déterminer la probabilité globale que la mesure corresponde aux données en base testées
+      proba = 0
+      for value in tabResult:
+            proba += value
+      return proba
+
+
+
+def sortListByMacAddress(sampleTestList : list) -> dict:
+      sampleTempo = {}
+      #Grouper les données de sampleTestList par adresse mac dans sampleTempo
+      for val in sampleTestList:
+            if val[0] in sampleTempo:
+                  #si l'adresse mac (val[0]) est dans sampleTempo, ajouter la mesure dBm (val[1]) à la liste des dBm de l'adresse mac
+                  sampleTempo[val[0]].append(val[1])
+            else:
+                  #Sinon, ajouter l'adresse mac et sa mesure dBm à sampleTempo
+                  sampleTempo.update({val[0] : [val[1]]})
+      return sampleTempo
+
+
+"""End Used for different matching"""

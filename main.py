@@ -10,7 +10,7 @@ dataBase = FingerprintDatabase()
 
 
 """Gauss matching"""
-
+"""
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv',False)
 
@@ -71,7 +71,7 @@ sampleTestList = [
 #Recherche de la meilleur position 
 result = gauss_matching(dataBase, sampleTestList)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-
+"""
 """End Gauss matching"""
 
 
@@ -79,37 +79,9 @@ print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + st
 
 
 """Histogram matching"""
-"""
+
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv', False)
-
-normalizedDataBase = FingerprintDatabase() #==> DB de position et NormHisto
-
-#Normaliser les rssi samples pour chaque point
-for fp in dataBase.db:
-      #Initialisation de l'histogramme
-      histo = NormHisto({})
-
-      dictHisto = {}
-      #Pour chaque AP à la position fp.position
-      for rssiSamp in fp.sample.samples:
-            #Compter chaque rssi
-            compte = 0
-            #histo.histogram.update({rssiSamp.mac_address : rssiSamp.rssi[0]/somme})
-            for rssi in rssiSamp.rssi :
-                  if int(rssi) in histo.histogram:
-                        histo.histogram[int(rssi)] += 1
-                  else:
-                        histo.histogram.update({int(rssi) : 1.0})
-                  compte += 1
-      
-            #Normaliser les rssi
-            for key in histo.histogram.keys():
-                  histo.histogram[key] = histo.histogram[key]/compte
-      
-            #Ajouter l'histo au dictionnaire de la position contenant les histogrammes
-            dictHisto.update({rssiSamp.mac_address : histo.histogram})
-      normalizedDataBase.append(PointHisto(fp.position,dictHisto))
 
 
 #Initialisation des données à tester
@@ -166,12 +138,11 @@ sampleTestList = [
       ["00:13:ce:8f:77:43",-83]
 ]
 
-sampleTest = normaliserList(sampleTestList)
 
 #Calcul de la meilleur position
-result = histogram_matching(normalizedDataBase, sampleTest)
+result = histogram_matching(dataBase, sampleTestList)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-"""
+
 """End Histogram matching"""
 
 
