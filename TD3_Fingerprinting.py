@@ -78,15 +78,19 @@ class PointHisto:
             self.histogram = histo
 
 
-def probability(histo1: NormHisto, histo2: NormHisto) -> float:
+def probability(histo1: dict, histo2: dict) -> float:
+      """Fonction calculant la probabilité que histo1 (l'histogramme des mesures) correspondent à histo2 (histogramme sauvé en base)"""
       tempo = {}
-
-      for key in histo1.histogram.keys():
-            if key in histo2.histogram:
-                  tempo.update({key : min(histo1.histogram[key], histo2.histogram[key])})
+      tabResult = []
+      #Pour chaque probabilité de chaque adresse mac de histo1, récupérer la plus petite valeur entre une probabilité de histo1 et la correspondante en base
+      for key in histo1.keys():
+            for keyHisto in histo1[key].keys():
+                  if key in histo2.keys()and keyHisto in histo2[key].keys():
+                        tabResult.append(min(histo1[key][keyHisto], histo2[key][keyHisto]))
       
+      #Sommer les probabilités obtenues précédement pour déterminer la probabilité globale que la mesure corresponde aux données en base testées
       proba = 0
-      for value in tempo.values():
+      for value in tabResult:
             proba += value
       return proba
 
@@ -94,10 +98,44 @@ def histogram_matching(db: FingerprintDatabase, sample: NormHisto) -> SimpleLoca
       val = 0
       loc = SimpleLocation(0,0,0)
       for pt in db.db:
-            newVal = probability(sample, pt.histogram)
+            newVal = probability(sample.histogram, pt.histogram)
             if newVal > val:
                   val = newVal
                   loc = pt.loc
       return loc 
 
+
+def normaliserList(sampleTestList : list) -> NormHisto:
+      sampleTempo = {}
+      #Grouper les données de sampleTestList par adresse mac dans sampleTempo
+      for val in sampleTestList:
+            if val[0] in sampleTempo:
+                  #si l'adresse mac (val[0]) est dans sampleTempo, ajouter la mesure dBm (val[1]) à la liste des dBm de l'adresse mac
+                  sampleTempo[val[0]].append(val[1])
+            else:
+                  #Sinon, ajouter l'adresse mac et sa mesure dBm à sampleTempo
+                  sampleTempo.update({val[0] : [val[1]]})
+
+
+      sampleTest = NormHisto({})
+      #Normaliser sampleTempo
+      for key, sampleValues in sampleTempo.items():
+            """là val[1] c'est un tableau avec les bdm de l'ap"""
+
+            nb = len(sampleValues)
+            tempo = {}
+            #pour chaque mesure dBm d'une adresse mac de sampleTempo, compter le nombre de mesures identiques 
+            for val in sampleValues :
+                  if val in tempo:
+                        tempo[val] += 1
+                  else :
+                        tempo.update({val : 1.0})
+
+            #Convertire tempo en un histogramme pour avoir la probabilité de chaque mesure dBm à la place de leur nomber d'occurence
+            for keyTempo in tempo.keys():
+                  tempo[keyTempo] = tempo[keyTempo]/nb
+
+            #ajouter le dictionnaire tempo au dictionnaire final contenant pour chaque adresse mac (key) son histogramme (tempo)
+            sampleTest.histogram.update({key : tempo})
+      return sampleTest
 """End Histogram matching"""

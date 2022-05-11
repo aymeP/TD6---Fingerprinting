@@ -86,21 +86,21 @@ sampleTest = GaussModel()
 
 
 """Histogram matching"""
-
-normalizedDataBase = FingerprintDatabase()
-#==> DB de position et NormHisto
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv', False)
-print("End Populating")
+
+normalizedDataBase = FingerprintDatabase() #==> DB de position et NormHisto
 
 #Normaliser les rssi samples pour chaque point
 for fp in dataBase.db:
-      #Ajouter le SimpleLocation
+      #Initialisation de l'histogramme
       histo = NormHisto({})
 
-      #Compter chaque rssi
-      compte = 0
+      dictHisto = {}
+      #Pour chaque AP à la position fp.position
       for rssiSamp in fp.sample.samples:
+            #Compter chaque rssi
+            compte = 0
             #histo.histogram.update({rssiSamp.mac_address : rssiSamp.rssi[0]/somme})
             for rssi in rssiSamp.rssi :
                   if int(rssi) in histo.histogram:
@@ -109,30 +109,72 @@ for fp in dataBase.db:
                         histo.histogram.update({int(rssi) : 1.0})
                   compte += 1
       
-      #Normaliser les rssi
-      for key in histo.histogram.keys():
-            histo.histogram[key] = histo.histogram[key]/compte
+            #Normaliser les rssi
+            for key in histo.histogram.keys():
+                  histo.histogram[key] = histo.histogram[key]/compte
       
-      normalizedDataBase.append(PointHisto(fp.position,histo))
+            #Ajouter l'histo au dictionnaire de la position contenant les histogrammes
+            dictHisto.update({rssiSamp.mac_address : histo.histogram})
+      normalizedDataBase.append(PointHisto(fp.position,dictHisto))
 
 
-sampleTest = NormHisto({  
-      -74:0.07692307692307693,
-      -75:0.07692307692307693,
-      -55:0.11538461538461539,
-      -54:0.11538461538461539,
-      -51:0.07692307692307693,
-      -52:0.038461538461538464,
-      -56:0.038461538461538464,
-      -57:0.038461538461538464,
-      -58:0.11538461538461539,
-      -64:0.038461538461538464,
-      -62:0.038461538461538464,
-      -61:0.11538461538461539,
-      -59:0.07692307692307693,
-      -53:0.038461538461538464,
-})
+#Initialisation des données à tester
+sampleTestList = [
+      ["00:13:ce:97:78:79", -74],
+      ["00:13:ce:95:e1:6f", -55],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:95:de:7e", -51],
+      ["00:13:ce:95:de:7e", -55],
+      ["00:13:ce:95:e1:6f", -54],
+      ["00:13:ce:97:78:79", -74],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:97:78:79", -75],
+      ["00:13:ce:95:e1:6f", -54],
+      ["00:13:ce:95:de:7e", -59],
+      ["00:13:ce:95:e1:6f", -51],
+      ["00:13:ce:95:de:7e", -61],
+      ["00:13:ce:95:e1:6f", -52],
+      ["00:13:ce:8f:78:d9", -64],
+      ["00:13:ce:95:de:7e", -59],
+      ["00:13:ce:8f:78:d9", -62],
+      ["00:13:ce:95:e1:6f", -56],
+      ["00:13:ce:95:de:7e", -61],
+      ["00:13:ce:95:de:7e", -54],
+      ["00:13:ce:95:e1:6f", -57],
+      ["00:13:ce:95:e1:6f", -55],
+      ["00:13:ce:8f:78:d9", -61],
+      ["00:13:ce:97:78:79", -75],
+      ["00:13:ce:95:de:7e", -53]
+]
 
+sampleTestList = [
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-63],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-60],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:97:78:79",-74],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:95:e1:6f",-58],
+      ["00:13:ce:8f:77:43",-84],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:95:e1:6f",-57],
+      ["00:13:ce:95:e1:6f",-57],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:8f:77:43",-83],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:8f:78:d9",-36],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-56],
+      ["00:13:ce:8f:77:43",-83]
+]
+
+sampleTest = normaliserList(sampleTestList)
+
+#Calcul de la meilleur position
 result = histogram_matching(normalizedDataBase, sampleTest)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
 
