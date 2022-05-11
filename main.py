@@ -1,91 +1,85 @@
-from random import gauss
-from statistics import stdev
 from FingerprintDatabase import FingerprintDatabase
 from TD2_GNSS_like_systems import *
 from TD3_Fingerprinting import *
-
-
-class GaussModel:
-      def __init__(self, avg: float, stddev: float):
-            self.average_rssi = avg
-            self.standard_deviation = stddev
-
-class GaussPoint:
-      def __init__(self, loc : SimpleLocation, histo: NormHisto):
-            self.loc = loc
-            self.histogram = histo
-
-
-
-def histogram_from_gauss(sample: GaussModel) -> RSSISample:
-	# Your code
-	pass
-
-
 
 
 
 #Init database
 dataBase = FingerprintDatabase()
 
-"""
-#Lire le csv 
-dataBase.populate('test_data_not_filtered.csv',False)
-print("End Populating")
-"""
-
-
 
 
 """Gauss matching"""
 
-#TODO histogram_from_gauss() ==> avec la formule gaussienne on peut recréer un histogramme avec la moy et la stdev
-#Au lieu de sauver tout l'histogramme, sauver moy et stdev ==> permet de le recréer. A recréer et à comparer à d'autres histogrammes, comme avant
+#Lire le csv 
+dataBase.populate('test_data_not_filtered.csv',False)
 
-"""
-De ce que je comprends, la classe GaussModel est faite pour chaque point avec 
--la moyen de tous les rssi mesurés au point
--stddev des rssi mesurés au point
-"""
-"""
-gaussDataBase = FingerprintDatabase()
-#Calculer avg et stddev des rssi samples pour chaque point
-for fp in dataBase.db:
-      gaussList = []
-      rssiList = []
-      for rssiSamp in fp.sample.samples:
-            rssiList += (rssiSamp.getRSSI())
-      gaussList.append(GaussModel(mean(rssiList),stdev(rssiList)))
+#Initialisation des données à tester
+sampleTestList = [
+      ["00:13:ce:97:78:79", -74],
+      ["00:13:ce:95:e1:6f", -55],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:95:de:7e", -51],
+      ["00:13:ce:95:de:7e", -55],
+      ["00:13:ce:95:e1:6f", -54],
+      ["00:13:ce:97:78:79", -74],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:8f:78:d9", -58],
+      ["00:13:ce:97:78:79", -75],
+      ["00:13:ce:95:e1:6f", -54],
+      ["00:13:ce:95:de:7e", -59],
+      ["00:13:ce:95:e1:6f", -51],
+      ["00:13:ce:95:de:7e", -61],
+      ["00:13:ce:95:e1:6f", -52],
+      ["00:13:ce:8f:78:d9", -64],
+      ["00:13:ce:95:de:7e", -59],
+      ["00:13:ce:8f:78:d9", -62],
+      ["00:13:ce:95:e1:6f", -56],
+      ["00:13:ce:95:de:7e", -61],
+      ["00:13:ce:95:de:7e", -54],
+      ["00:13:ce:95:e1:6f", -57],
+      ["00:13:ce:95:e1:6f", -55],
+      ["00:13:ce:8f:78:d9", -61],
+      ["00:13:ce:97:78:79", -75],
+      ["00:13:ce:95:de:7e", -53]
+]
 
-      gaussDataBase.append(GaussPoint(fp.position,gaussList))
+sampleTestList = [
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-63],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-60],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:97:78:79",-74],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:95:e1:6f",-58],
+      ["00:13:ce:8f:77:43",-84],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:95:e1:6f",-57],
+      ["00:13:ce:95:e1:6f",-57],
+      ["00:13:ce:8f:78:d9",-37],
+      ["00:13:ce:8f:77:43",-83],
+      ["00:13:ce:95:de:7e",-70],
+      ["00:13:ce:8f:78:d9",-36],
+      ["00:13:ce:97:78:79",-73],
+      ["00:13:ce:95:e1:6f",-56],
+      ["00:13:ce:8f:77:43",-83]
+]
 
+#Recherche de la meilleur position 
+result = gauss_matching(dataBase, sampleTestList)
+print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
 
-
-
-
-
-sampleTest = GaussModel()
-#Comparer ce GaussModel avec les valeurs dans la base ?? ==> refaire la base avec que 1 GaussModel pour chaque point ??
-
-#Avoir un GaussModel pour chaque mac_addr de chaque pt ?
-
-"""
-
-
-#result = histogram_matching(normalizedDataBase, sampleTest)
-#print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
 """End Gauss matching"""
 
 
 
 
 
-
-
-
-
-
 """Histogram matching"""
+"""
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv', False)
 
@@ -177,7 +171,7 @@ sampleTest = normaliserList(sampleTestList)
 #Calcul de la meilleur position
 result = histogram_matching(normalizedDataBase, sampleTest)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-
+"""
 """End Histogram matching"""
 
 
@@ -219,7 +213,6 @@ dataBase.populate('test_data_not_filtered.csv')
 print("End Populating")
 
 result = simple_matching(dataBase, sampleTest)
-print(result)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
 """
 
