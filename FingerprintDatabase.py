@@ -22,9 +22,9 @@ class FingerprintDatabase:
 	def addRSSI(self, dbIndex: int, rssiSamp: RSSISample) -> None:
 		self.db[dbIndex].addRSSI(rssiSamp)
 
-	def populate(self,path:str, calculateAvg = True)->None:
+	def populate(self,path:str, calculateAvg = True, delim = ";")->None:
 		with open(path, newline='') as csvfile:
-			spamreader = reader(csvfile, delimiter=';', quotechar='|')
+			spamreader = reader(csvfile, delimiter=delim, quotechar='|')
 			
 			for row in spamreader:        
 				if len(row) > 4 :
