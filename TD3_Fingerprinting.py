@@ -7,45 +7,46 @@ from SimpleLocation import SimpleLocation
 """Simple matching"""
 def rssi_distance(sample1: dict[str, float], sample2: dict[str, float]) -> float:
       """
-      Calcul la distance rssi entre les 2 samples
-      -sample1 : contient les valeurs mesurées
-      -sample2 : contient les valeurs connues
+      Calculate the rssi distance between 2 samples.
+      :param sample1: the first rssi samples to compare
+      :param sample2: the second rssi samples to compare
+      :return: the computed distance
       """
-      #norme des distances entre chaque rssi de chaque app
-      #d = sqrt(somme(pow(RSSIi1 - RSSIi2, 2))
-
-      #Test de longueur ==> tous les AP ne sont pas detectés a certains endroits ==> pas bon
+      #Test the lengths. If the number of detected APs in each sample is not the same then the distance can not be computed  
       if len(sample1) != len(sample2):
             return 1000
       
       d = 0
+      #Compute the distance between each value for each AP
       for mac_address in sample1.keys():
-            #certaines adresses mac peuvent etre dans le dictionnaire sample1 mais pas dans sample2
             if (mac_address in sample2) :
+                  #If an AP's mac_address is in sample2 then compute the distance between these 2 values.
                   d += pow(sample1[mac_address] - sample2[mac_address], 2)
             else :
+                  #Else the distance can not be computed
                   return 1000
-            
-            #d += pow(sample1[mac_address] - sample2[mac_address], 2)
       return sqrt(d) 
 
 
 def simple_matching(db: FingerprintDatabase, sample: dict[str, float]) -> SimpleLocation:
-      #Pr chaque pt dans bdd : calculer rssi_distance. retourner les coord ou la distance est la plus faible
-
+      """
+      Look in the database for the SimpleLocation corresponding to the measured sample.
+      :param db: the database containing the known rssi values.
+      :param sample: the measured rssi values used to determine the location.
+      :return: the SimpleLocation corresponding to the measured sample.
+      """
+      #For each location in the database, compute the rssi_distance with the sample. Return the location where the distance is the shortest
       distanceMin = 1000
       position = SimpleLocation(0,0,0)
       for fp in db.db:
-            #Pour chaque point
-            #Construire le dict {addresse mac : rssi}
+            #Build a dict containing the AP's mac address and its rssi value
             dictRSSI = {}
             for rssiSamp in fp.sample.samples:
                   dictRSSI.update({rssiSamp.mac_address : rssiSamp.rssi[0]})
 
-            #Calculer la distance rssi
+            #Compute the rssi distance
             newDistanceMin = rssi_distance(sample,dictRSSI)
             
-            #Comparer la nouvelle distance a la plus petite deja calculee
             if newDistanceMin < distanceMin :
                   distanceMin = newDistanceMin
                   position = fp.position
@@ -57,31 +58,42 @@ def simple_matching(db: FingerprintDatabase, sample: dict[str, float]) -> Simple
 
 
 """Histogram matching"""
-#histo : int = dbm et float = normalisation
 class NormHisto:
+      """
+      Class used to save an histogram.
+      """
       def __init__(self, histo: dict[int, float]):
             self.histogram = histo
 
 class PointHisto:
+      """
+      Class used to store an histogram at a location.
+      """
       def __init__(self, loc : SimpleLocation, histo: NormHisto):
             self.loc = loc
             self.histogram = histo
 
 
 def normaliserDataBase(dataBase : FingerprintDatabase) -> FingerprintDatabase:
-      normalizedDataBase = FingerprintDatabase() #==> DB de position et NormHisto
+      """
+      Normalize a database. To normalize = to make the sum of all beans of each histogram equal to 1.
+      :param dataBase: the database to normalized.
+      :return: the normalized database.
+      """
+      normalizedDataBase = FingerprintDatabase() #Database containing NormHistos for each location
 
-      #Normaliser les rssi samples pour chaque point
+      #Normalize rssi samples of each location
       for fp in dataBase.db:
-            #Initialisation de l'histogramme
+            #Init  the histogram
             histo = NormHisto({})
 
             dictHisto = {}
-            #Pour chaque AP à la position fp.position
+            #For each AP the the location fp.position
             for rssiSamp in fp.sample.samples:
-                  #Compter chaque rssi
+                  #Count the total number of rssis
                   compte = 0
-                  #histo.histogram.update({rssiSamp.mac_address : rssiSamp.rssi[0]/somme})
+
+                  #Count the occurence number of each rssi 
                   for rssi in rssiSamp.rssi :
                         if int(rssi) in histo.histogram:
                               histo.histogram[int(rssi)] += 1
@@ -89,50 +101,63 @@ def normaliserDataBase(dataBase : FingerprintDatabase) -> FingerprintDatabase:
                               histo.histogram.update({int(rssi) : 1.0})
                         compte += 1
             
-                  #Normaliser les rssi
+                  #Normalize the rssis
                   for key in histo.histogram.keys():
                         histo.histogram[key] = histo.histogram[key]/compte
             
-                  #Ajouter l'histo au dictionnaire de la position contenant les histogrammes
+                  #Add the normalized histogram to the dict containing all the histograms for the location
                   dictHisto.update({rssiSamp.mac_address : histo.histogram})
+            #Add the dict containing all the histograms for the location to the database
             normalizedDataBase.append(PointHisto(fp.position,dictHisto))
-      
+      #Return the normalized database
       return normalizedDataBase
 
 
 def normaliserList(sampleTestList : list) -> NormHisto:
-      #sort list
+      """
+      Transform a list of mac address ane their rssi values into an histogram
+      :param sampleTestList: the list to normalize
+      :return: the histogram build using the list
+      """
+      #Sort the rssi values of sampleTestList by mac_address
       sampleTempo = sortListByMacAddress(sampleTestList)
 
       sampleTest = NormHisto({})
-      #Normaliser sampleTempo
+      #Normalize sampleTempo
       for key, sampleValues in sampleTempo.items():
             nb = len(sampleValues)
             tempo = {}
-            #pour chaque mesure dBm d'une adresse mac de sampleTempo, compter le nombre de mesures identiques 
-            for val in sampleValues :
-                  if val in tempo:
-                        tempo[val] += 1
+            #Count the occurence number of each rssi
+            for rssi in sampleValues :
+                  if rssi in tempo:
+                        tempo[rssi] += 1
                   else :
-                        tempo.update({val : 1.0})
+                        tempo.update({rssi : 1.0})
 
-            #Convertire tempo en un histogramme pour avoir la probabilité de chaque mesure dBm à la place de leur nomber d'occurence
+            #Normalize the rssis (build the histogram)
             for keyTempo in tempo.keys():
                   tempo[keyTempo] = tempo[keyTempo]/nb
 
-            #Ajouter le dictionnaire tempo au dictionnaire final contenant pour chaque adresse mac (key) son histogramme (tempo)
+            #Add the histogram to the final dict containing an histogram for each mac address
             sampleTest.histogram.update({key : tempo})
+      #Return the dict containing an histogram for each mac address in the list given in parameter
       return sampleTest
 
 
 def histogram_matching(dataBase: FingerprintDatabase, sampleTestList: list) -> SimpleLocation:
-      #Normaliser la base de données (calculer un histogramme pour chaque AP de chaque position)
+      """
+      Compare the measured rssi values to the known ones in the database to determine the location.
+      :param dataBase: the database containing the known rssi values
+      :param sampleTestList: the list of the measured rssi values
+      :return: the computed location where the measured have been taken  
+      """
+      #Normalize the database (calculate an histogram for each AP of each location)
       normalizedDataBase = normaliserDataBase(dataBase)
 
-      #Normaliser les mesures à tester (Créer un histogramme pour chaque AP)
+      #Normalize the measures to test (build an histogram for each AP)
       sampleTest = normaliserList(sampleTestList)
 
-      #Retourner la meilleur position
+      #Determine and return the best location
       return lookForBestLocation(normalizedDataBase, sampleTest.histogram)
 
 """End Histogram matching"""
@@ -142,49 +167,65 @@ def histogram_matching(dataBase: FingerprintDatabase, sampleTestList: list) -> S
 
 """Gauss matching"""
 class GaussModel:
+      """
+      Class containing the values (an avg and a stdev) used to build a Gauss curve.
+      """
       def __init__(self, avg: float, stddev: float):
             self.average_rssi = avg
             self.standard_deviation = stddev
 
 class GaussPoint:
+      """
+      Class contaning a location and all the histograms associated to it.
+      """
       def __init__(self, loc : SimpleLocation, histo: dict):
             self.loc = loc
             self.histogram = histo
 
 
 def createHistoFromDict(testSample : dict) -> dict :
+      """
+      Build an histogram from a dict containing mac adresses and their corresponding average and standrad deviation values
+      :param testSample: the dict used to create histograms.
+      :return: a dict contaning an histogral for each mac adress 
+      """
       histoToTest = {}
       for mac_address, modelGauss in testSample.items():
-            #Calculer l'histogramme
+            #Build the histogram
             histo = computeHistoValues(modelGauss.average_rssi, modelGauss.standard_deviation, 10)
             histoToTest.update({mac_address : histo})
       return histoToTest
 
 
 def gauss_matching(dataBase : FingerprintDatabase, sampleTestList : list) -> SimpleLocation:
-      #Initialisation de la base contenant les modèles de Gauss
+      """
+      Function that looks in a database for the location corresponding to the measured rssi values.
+      :param dataBase: tha database containing the known rssi values.
+      :param sampleTestList: the list of rssi values to compute and test.
+      :return: the determined location where the measured have been made.
+      """
+      #Initialize the database containing the Gauss models
       computedHistoDataBase = initialiserGaussDataBase(dataBase)
 
-      #Créer les modeles de Gauss des mesures à tester
-      testSample = creatGaussModels(sortListByMacAddress(sampleTestList))
+      #Build the Gauss models from the measured values to test
+      testSample = createGaussModel(sortListByMacAddress(sampleTestList))
 
-      #Création et sauvegarde des histogrammes pour chaque AP à partir des avg et stdev à tester
+      #Build and save histogram for each AP using the avg et stdev values to test
       histoToTest = createHistoFromDict(testSample)
 
-      #Retourner la meilleur position
+      #Determine and return the best location 
       return lookForBestLocation(computedHistoDataBase, histoToTest)
 
 
-"""
-def histogram_from_gauss(sample: GaussModel) -> RSSISample:
-	# Your code
-	pass
-"""
-
-
 def computeHistoValues(average_rssi : float, standard_deviation : float, xMinMax : int) -> dict:
-      """Function that compute histogram values for all integer values of RSSI from floor(rssi_avg)-10 to floor(rssi_avg)+10"""
-      #Calculer l'histogramme
+      """
+      Function that compute histogram values for all integer values of RSSI from floor(rssi_avg)-xMinMax to floor(rssi_avg)+xMinMax.
+      :param average_rssi: the average rssi value.
+      :param standard_deviation: the stdev value.
+      :param xMinMax: the value used as limits to build the histogram.
+      :return: a dict  conatining the values of the histogram.
+      """
+      #Compute the histogram
       histo = {}
       for x in range (floor(average_rssi)-xMinMax, floor(average_rssi)+xMinMax):
             stddev = standard_deviation
@@ -193,43 +234,54 @@ def computeHistoValues(average_rssi : float, standard_deviation : float, xMinMax
             else :
                   histo.update({x : 1})
       
-      #Coefficienter les probabilités de l'histogramme pour que leur somme soit égale à 1
+      #Divide the probabilities by a coefficient so their sum is equal to 1
       probaTotal = sum(histo.values())
       for key in histo.keys():
             histo[key] = histo[key] / probaTotal
       
+      #Return the computed histogram
       return histo
 
 
 def initialiserGaussDataBase(dataBase : FingerprintDatabase) -> FingerprintDatabase:
+      """
+      Build a database containing Gauss values from rssi values contained in a database.
+      :param dataBase: the database containing the rssi values of each AP for each location.
+      :return: the build database containing the Gauss values.
+      """
       gaussDataBase = FingerprintDatabase()
-      #Calculer avg et stddev des rssi samples pour chaque AP de chaque position
+      #Calculate the avg and stdev values from the rssi samples for each AP of each location
       for fp in dataBase.db:
             histosAPosition = {}
             for rssiSamp in fp.sample.samples:
-                  #Créer le GaussModel pour l'AP rssiSamp.mac_address
+                  #Build and save the Gauss model for the AP rssiSamp.mac_address
                   histosAPosition.update({rssiSamp.mac_address : GaussModel(mean(rssiSamp.getRSSI()), stdev(rssiSamp.getRSSI()) if(len(rssiSamp.getRSSI())>1) else 0)})
-            #Ajouter tous les GaussModel pour la position fp.position à la base gaussDataBase
+            #Add all the Gauss models for the location fp.position to the database gaussDataBase
             gaussDataBase.append(GaussPoint(fp.position,histosAPosition))
 
 
-      #Computes histogram values for all integer values of RSSI from floor(rssi_avg)-10 to floor(rssi_avg)+10 and stores computed histograms.
+      #Computes histogram values for all integer values of RSSI from floor(rssi_avg)-10 to floor(rssi_avg)+10 and stores the computed histograms.
       computedHistoDataBase = FingerprintDatabase()
       for gp in gaussDataBase.db:
             histosAPosition = {}
             for mac_address, modelGauss in gp.histogram.items():
-                  #Calculer l'histogramme
+                  #Compute the histogram
                   histo = computeHistoValues(modelGauss.average_rssi, modelGauss.standard_deviation, 10)
                   histosAPosition.update({mac_address : histo})
             computedHistoDataBase.append(GaussPoint(gp.loc,histosAPosition))
-
+      #Return the database containing the Gauss values.
       return computedHistoDataBase
 
 
-def creatGaussModels(testSampleSorted) :
+def createGaussModel(testSampleSorted: dict) -> dict:
+      """
+      Create a Gauss model from a dict containing rssi values for each mac adress.
+      :param testSampleSorted: the dict containing rssi values for each mac adress.
+      :return: a dict containing for each AP the avg and stdev values used to build the Gauss model
+      """
       testSample ={}
       for mac_address, rssi in testSampleSorted.items():
-            #Créer le GaussModel pour l'AP d'adresse mac mac_address
+            #Build the Gauss model for the AP having the adress mac mac_address
             testSample.update({mac_address : GaussModel(mean(rssi), stdev(rssi) if(len(rssi)>1) else 0)})
       return testSample
 
@@ -239,11 +291,18 @@ def creatGaussModels(testSampleSorted) :
 
 
 
-"""Used for different matching"""
+"""Common functions used for different matching"""
 def lookForBestLocation(computedHistoDataBase : FingerprintDatabase, histoToTest : dict) -> SimpleLocation:
+      """
+      Look in the database to dertemine the best location of the histogram to test.
+      :param computedHistoDataBase: the database containing the known histograms
+      :param histoToTest: the histogram to test
+      :return: the determined location where the measured have been made
+      """
       val = 0
       loc = SimpleLocation(0,0,0)
       for pt in computedHistoDataBase.db:
+            #Calculate the probability of each histogram in the database compared to the measured one
             newVal = probability(histoToTest, pt.histogram)
             if newVal > val:
                   val = newVal
@@ -252,7 +311,13 @@ def lookForBestLocation(computedHistoDataBase : FingerprintDatabase, histoToTest
 
 
 def probability(histo1: dict, histo2: dict) -> float:
-      """Fonction calculant la probabilité que histo1 (l'histogramme des mesures) correspondent à histo2 (histogramme sauvé en base)"""
+      """
+      Calculate the probability of an histogram to corresponds to another one.
+      :param histo1: the histogram build from the measured rssis.
+      :param histo2: the histogram saved in a database.
+      :return: the probability of histo1 to correspond to histo2.
+      """
+
       tempo = {}
       tabResult = []
       #Pour chaque probabilité de chaque adresse mac de histo1, récupérer la plus petite valeur entre une probabilité de histo1 et la correspondante en base
@@ -270,16 +335,21 @@ def probability(histo1: dict, histo2: dict) -> float:
 
 
 def sortListByMacAddress(sampleTestList : list) -> dict:
+      """
+      Sort by mac_address the rssi values contained in a list.
+      :param sampleTestList: the list to sort.
+      :return: a dict containing the mac addresses and their corresponding rssi values
+      """
       sampleTempo = {}
-      #Grouper les données de sampleTestList par adresse mac dans sampleTempo
+      #Group the sampleTestList's data by mac address in sampleTempo
       for val in sampleTestList:
             if val[0] in sampleTempo:
-                  #si l'adresse mac (val[0]) est dans sampleTempo, ajouter la mesure dBm (val[1]) à la liste des dBm de l'adresse mac
+                  #If the mac address (val[0]) is in sampleTempo, add the measured rssi value (val[1]) to its rssis list
                   sampleTempo[val[0]].append(val[1])
             else:
-                  #Sinon, ajouter l'adresse mac et sa mesure dBm à sampleTempo
+                  #Else add the mac address and its rssi value to sampleTempo
                   sampleTempo.update({val[0] : [val[1]]})
+      #Return the sorted list
       return sampleTempo
-
 
 """End Used for different matching"""

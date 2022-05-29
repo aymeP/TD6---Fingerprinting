@@ -10,7 +10,7 @@ dataBase = FingerprintDatabase()
 
 
 """Gauss matching"""
-"""
+
 #Lire le csv 
 dataBase.populate('test_data_not_filtered.csv',False)
 
@@ -71,7 +71,7 @@ sampleTestList = [
 #Recherche de la meilleur position 
 result = gauss_matching(dataBase, sampleTestList)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-"""
+
 """End Gauss matching"""
 
 
@@ -79,8 +79,9 @@ print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + st
 
 
 """Histogram matching"""
-
+"""
 #Lire le csv 
+#dataBase.populate('result.csv', False, ",")
 dataBase.populate('test_data_not_filtered.csv', False)
 
 
@@ -142,7 +143,7 @@ sampleTestList = [
 #Calcul de la meilleur position
 result = histogram_matching(dataBase, sampleTestList)
 print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + str(result.z))
-
+"""
 """End Histogram matching"""
 
 
@@ -196,7 +197,8 @@ print ("Meilleur position : " + str(result.x) + ", " + str(result.y) + ", " + st
 
 
 
-""" TD2
+""" TD2 """
+"""
 AP = {"00:13:ce:95:e1:6f": AccessPoint("00:13:ce:95:e1:6f", 4.93, 25.81, 3.55, 2417000000, 5.0, 20.0),
       "00:13:ce:95:de:7e": AccessPoint("00:13:ce:95:de:7e", 4.83, 10.88, 3.78, 2417000000, 5.0, 20.0),
       "00:13:ce:97:78:79": AccessPoint("00:13:ce:97:78:79", 20.05, 28.31, 3.74, 2417000000, 5.0, 20.0),
@@ -206,7 +208,7 @@ AP = {"00:13:ce:95:e1:6f": AccessPoint("00:13:ce:95:e1:6f", 4.93, 25.81, 3.55, 2
 
 
 #lire le CSV
-dataBase.populate('test_result.csv')
+dataBase.populate('test_result.csv', delim=",")
 #Pour chaque localisation, on calcul le i de chaque AP puis on calcul un i moyen pour chaque AP
 #Distance = distance entre pt où on fait la mesure et l'AP
 
