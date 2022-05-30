@@ -199,10 +199,11 @@ def createHistoFromDict(testSample : dict) -> dict :
 
 def gauss_matching(dataBase : FingerprintDatabase, sampleTestList : list) -> SimpleLocation:
       """
-      Function that looks in a database for the location corresponding to the measured rssi values.
-      :param dataBase: tha database containing the known rssi values.
-      :param sampleTestList: the list of rssi values to compute and test.
-      :return: the determined location where the measured have been made.
+      Compare the measured rssi values to the known ones in the database to determine the location.
+      :param dataBase: the database containing the known rssi values
+      :param sampleTestList: the list of the measured rssi values
+      :return: the computed location where the measure have been taken
+
       """
       #Initialize the database containing the Gauss models
       computedHistoDataBase = initialiserGaussDataBase(dataBase)
