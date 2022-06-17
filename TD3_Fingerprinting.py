@@ -4,6 +4,8 @@ from statistics import mean, stdev
 from FingerprintDatabase import FingerprintDatabase
 from SimpleLocation import SimpleLocation
 
+
+
 """Simple matching"""
 def rssi_distance(sample1: dict[str, float], sample2: dict[str, float]) -> float:
       """
@@ -53,6 +55,7 @@ def simple_matching(db: FingerprintDatabase, sample: dict[str, float]) -> Simple
 
       return position
 """End simple matching"""
+
 
 
 
@@ -165,6 +168,7 @@ def histogram_matching(dataBase: FingerprintDatabase, sampleTestList: list) -> S
 
 
 
+
 """Gauss matching"""
 class GaussModel:
       """
@@ -216,7 +220,7 @@ def gauss_matching(dataBase : FingerprintDatabase, sampleTestList : list) -> Sim
 
       #Determine and return the best location 
       return lookForBestLocation(computedHistoDataBase, histoToTest)
-
+  
 
 def computeHistoValues(average_rssi : float, standard_deviation : float, xMinMax : int) -> dict:
       """
